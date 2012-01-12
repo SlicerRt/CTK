@@ -116,6 +116,7 @@ public:
   Q_INVOKABLE QStringList studiesForPatient (QString patientUID);
   Q_INVOKABLE QStringList seriesForStudy (QString studyUID);
   Q_INVOKABLE QStringList filesForSeries (QString seriesUID);
+  Q_INVOKABLE QStringList runQuery (QString query);
 
   ///
   /// \brief load the header from a file and allow access to elements

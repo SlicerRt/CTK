@@ -43,7 +43,6 @@
 
 // DCMTK includes
 #include <dcmtk/dcmdata/dcfilefo.h>
-#include <dcmtk/dcmdata/dcfilefo.h>
 #include <dcmtk/dcmdata/dcdeftag.h>
 #include <dcmtk/dcmdata/dcdatset.h>
 #include <dcmtk/ofstd/ofcond.h>
@@ -382,6 +381,21 @@ QStringList ctkDICOMDatabase::filesForSeries(QString seriesUID)
 }
 
 //------------------------------------------------------------------------------
+QStringList ctkDICOMDatabase::runQuery(QString query)
+{
+  Q_D(ctkDICOMDatabase);
+  QSqlQuery queryObj(d->Database);
+  queryObj.prepare ( query );
+  queryObj.exec();
+  QStringList result;
+  while (queryObj.next()) 
+    {
+    result << queryObj.value(0).toString();
+    }
+  return( result );
+}
+
+//------------------------------------------------------------------------------
 void ctkDICOMDatabase::loadInstanceHeader (QString sopInstanceUID)
 {
   Q_D(ctkDICOMDatabase);
@@ -416,7 +430,10 @@ void ctkDICOMDatabase::loadFileHeader (QString fileName)
           dO->getETag(),4,16,QLatin1Char('0'));
       std::ostringstream s;
       dO->print(s);
-      d->LoadedHeader[tag] = QString(s.str().c_str());
+      if (!d->LoadedHeader.contains(tag))
+      {
+        d->LoadedHeader[tag] = QString(s.str().c_str());
+      }
       }
     }
   return;
@@ -465,8 +482,6 @@ void ctkDICOMDatabase::insert( const ctkDICOMDataset& ctkDataset, bool storeFile
 void ctkDICOMDatabase::insert ( const QString& filePath, bool storeFile, bool generateThumbnail, bool createHierarchy, const QString& destinationDirectoryName)
 {
   Q_D(ctkDICOMDatabase);
-  Q_UNUSED(createHierarchy);
-  Q_UNUSED(destinationDirectoryName);
 
   /// first we check if the file is already in the database
   if (fileExistsAndUpToDate(filePath))
@@ -515,27 +530,14 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
     logger.error("SQLITE ERROR: " + fileExists.lastError().driverText());
     return;
   }
-
-  QString databaseFilename(fileExists.value(1).toString());
-  QDateTime fileLastModified(QFileInfo(databaseFilename).lastModified());
-  QDateTime databaseInsertTimestamp(QDateTime::fromString(fileExists.value(0).toString(),Qt::ISODate));
-
-  qDebug() << "inserting filePath: " << filePath;
-  if (databaseFilename == "")
-    {
-    qDebug() << "database filename for " << sopInstanceUID << " is empty - we should insert on top of it";
-    }
-  else
-    {
-    qDebug() << "database filename for " << sopInstanceUID << " is: " << databaseFilename;
-    qDebug() << "modified date is: " << fileLastModified;
-    qDebug() << "db insert date is: " << databaseInsertTimestamp;
-    if ( fileExists.next() && fileLastModified < databaseInsertTimestamp )
-      {
-      logger.debug ( "File " + databaseFilename + " already added" );
-      return;
-      }
-    }
+  qDebug() << "filename is: " << fileExists.value(1).toString();
+  qDebug() << "modified date is: " << QFileInfo(fileExists.value(1).toString()).lastModified();
+  qDebug() << "db mod date is: " << QDateTime::fromString(fileExists.value(0).toString(),Qt::ISODate);
+  if ( fileExists.next() && QFileInfo(fileExists.value(1).toString()).lastModified() < QDateTime::fromString(fileExists.value(0).toString(),Qt::ISODate) )
+  {
+    logger.debug ( "File " + fileExists.value(1).toString() + " already added" );
+    return;
+  }
 
   //If the following fields can not be evaluated, cancel evaluation of the DICOM file
   QString patientsName(ctkDataset.GetElementAsString(DCM_PatientName) );
@@ -581,6 +583,49 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
   long echoNumber(ctkDataset.GetElementAsInteger(DCM_EchoNumbers) );
   long temporalPosition(ctkDataset.GetElementAsInteger(DCM_TemporalPositionIdentifier) );
 
+  QString modality(ctkDataset.GetElementAsString(DCM_Modality) );
+
+  if (seriesDescription.isEmpty())
+  {
+    seriesDescription=modality; 
+  }
+  else
+  {
+    seriesDescription=modality+": "+seriesDescription; 
+  }
+  
+  if (modality.compare("RTSTRUCT")==0)
+  {
+    QString structureSetDate(ctkDataset.GetElementAsString(DCM_StructureSetDate) );
+    QString structureSetTime(ctkDataset.GetElementAsString(DCM_StructureSetTime) );
+    seriesDate=structureSetDate;
+    seriesTime=structureSetTime;
+  }
+  else if (modality.compare("RTPLAN")==0)
+  {
+    QString rtPlanDate(ctkDataset.GetElementAsString(DCM_RTPlanDate) );
+    QString rtPlanTime(ctkDataset.GetElementAsString(DCM_RTPlanTime) );
+    seriesDate=rtPlanDate;
+    seriesTime=rtPlanTime;
+  }
+  else if (modality.compare("RTDOSE")==0)
+  {
+    QString contentDate(ctkDataset.GetElementAsString(DCM_ContentDate) );
+    QString contentTime(ctkDataset.GetElementAsString(DCM_ContentTime) );
+    QString acquisitionDate(ctkDataset.GetElementAsString(DCM_AcquisitionDate) );
+    QString acquisitionTime(ctkDataset.GetElementAsString(DCM_AcquisitionTime) );
+    if (seriesDate.isEmpty() && seriesTime.isEmpty())
+    {
+      seriesDate=contentDate;
+      seriesTime=contentTime;
+    }
+    if (seriesDate.isEmpty() && seriesTime.isEmpty())
+    {
+      seriesDate=acquisitionDate;
+      seriesTime=acquisitionTime;
+    }
+  }
+
   // store the file if the database is not in memomry
   // TODO: if we are called from insert(file) we
   // have to do something else
@@ -624,7 +669,7 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
   //The dbPatientID  is a unique number within the database, 
   //generated by the sqlite autoincrement
   //The patientID  is the (non-unique) DICOM patient id
-  int dbPatientID = lastPatientUID;
+  int dbPatientID = -1;
 
   if ( patientID != "" && patientsName != "" )
     {
@@ -634,7 +679,6 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
           || lastPatientsBirthDate != patientsBirthDate 
           || lastPatientsName != patientsName )
       {
-      qDebug() << "This looks like a different patient from last insert: " << patientID;
       // Ok, something is different from last insert, let's insert him if he's not
       // already in the db.
       //
@@ -650,7 +694,6 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
       {
         // we found him
         dbPatientID = checkPatientExistsQuery.value(checkPatientExistsQuery.record().indexOf("UID")).toInt();
-        qDebug() << "Found patient in the database as UId: " << dbPatientID;
       }
       else
         {
@@ -659,7 +702,7 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
         insertPatientStatement.prepare ( "INSERT INTO Patients ('UID', 'PatientsName', 'PatientID', 'PatientsBirthDate', 'PatientsBirthTime', 'PatientsSex', 'PatientsAge', 'PatientsComments' ) values ( NULL, ?, ?, ?, ?, ?, ?, ? )" );
         insertPatientStatement.bindValue ( 0, patientsName );
         insertPatientStatement.bindValue ( 1, patientID );
-        insertPatientStatement.bindValue ( 2, patientsBirthDate );
+        insertPatientStatement.bindValue ( 2, QDate::fromString ( patientsBirthDate, "yyyyMMdd" ) );
         insertPatientStatement.bindValue ( 3, patientsBirthTime );
         insertPatientStatement.bindValue ( 4, patientsSex );
         // TODO: shift patient's age to study, 
@@ -669,7 +712,6 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
         loggedExec(insertPatientStatement);
         dbPatientID = insertPatientStatement.lastInsertId().toInt();
         logger.debug ( "New patient inserted: " + QString().setNum ( dbPatientID ) );
-        qDebug() << "New patient inserted as : " << dbPatientID;
         }
       /// keep this for the next image
       lastPatientUID = dbPatientID;
@@ -677,8 +719,6 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
       lastPatientsBirthDate = patientsBirthDate;
       lastPatientsName = patientsName;
       }
-
-    qDebug() << "Going to insert this instance with dbPatientID: " << dbPatientID;
 
     // Patient is in now. Let's continue with the study
 
@@ -722,6 +762,11 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
       checkSeriesExistsQuery.bindValue ( 0, seriesInstanceUID );
       logger.warn ( "Statement: " + checkSeriesExistsQuery.lastQuery() );
       loggedExec(checkSeriesExistsQuery);
+      if (seriesDate.isEmpty())
+      {
+        QString contentDate(ctkDataset.GetElementAsString(DCM_ContentDate) );
+        seriesDate=contentDate;
+      }
       if(!checkSeriesExistsQuery.next())
       {
         QSqlQuery insertSeriesStatement ( Database );
@@ -729,8 +774,8 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
         insertSeriesStatement.bindValue ( 0, seriesInstanceUID );
         insertSeriesStatement.bindValue ( 1, studyInstanceUID );
         insertSeriesStatement.bindValue ( 2, static_cast<int>(seriesNumber) );
-        insertSeriesStatement.bindValue ( 3, seriesDate );
-        insertSeriesStatement.bindValue ( 4, QDate::fromString ( seriesTime, "yyyyMMdd" ) );
+        insertSeriesStatement.bindValue ( 3, QDate::fromString ( seriesDate, "yyyyMMdd" ));
+        insertSeriesStatement.bindValue ( 4, seriesTime );
         insertSeriesStatement.bindValue ( 5, seriesDescription );
         insertSeriesStatement.bindValue ( 6, bodyPartExamined );
         insertSeriesStatement.bindValue ( 7, frameOfReferenceUID );
