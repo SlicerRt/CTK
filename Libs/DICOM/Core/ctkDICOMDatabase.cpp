@@ -467,8 +467,6 @@ void ctkDICOMDatabase::insert( const ctkDICOMDataset& ctkDataset, bool storeFile
 void ctkDICOMDatabase::insert ( const QString& filePath, bool storeFile, bool generateThumbnail, bool createHierarchy, const QString& destinationDirectoryName)
 {
   Q_D(ctkDICOMDatabase);
-  Q_UNUSED(createHierarchy);
-  Q_UNUSED(destinationDirectoryName);
 
   /// first we check if the file is already in the database
   if (fileExistsAndUpToDate(filePath))
@@ -557,6 +555,56 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
   long echoNumber(ctkDataset.GetElementAsInteger(DCM_EchoNumbers) );
   long temporalPosition(ctkDataset.GetElementAsInteger(DCM_TemporalPositionIdentifier) );
 
+  QString modality(ctkDataset.GetElementAsString(DCM_Modality) );
+
+  if (modality.compare("RTSTRUCT")==0)
+  {
+    QString structureSetLabel(ctkDataset.GetElementAsString(DCM_StructureSetLabel) );
+    QString structureSetDate(ctkDataset.GetElementAsString(DCM_StructureSetDate) );
+    QString structureSetTime(ctkDataset.GetElementAsString(DCM_StructureSetTime) );
+    seriesDescription=modality+": "+structureSetLabel+" "+seriesDescription;
+    seriesDate=structureSetDate;
+    seriesTime=structureSetTime;
+  }
+  else if (modality.compare("RTPLAN")==0)
+  {
+    QString rtPlanLabel(ctkDataset.GetElementAsString(DCM_RTPlanLabel) );
+    QString rtPlanName(ctkDataset.GetElementAsString(DCM_RTPlanName) );
+    QString rtPlanDate(ctkDataset.GetElementAsString(DCM_RTPlanDate) );
+    QString rtPlanTime(ctkDataset.GetElementAsString(DCM_RTPlanTime) );
+    seriesDescription=modality+": "+rtPlanLabel;
+    if (!rtPlanName.isEmpty())
+    {
+      seriesDescription+=" ("+rtPlanName+")";
+    }
+    seriesDescription+=" "+seriesDescription;
+    seriesDate=rtPlanDate;
+    seriesTime=rtPlanTime;
+  }
+  else if (modality.compare("RTDOSE")==0)
+  {
+    QString instanceNumber(ctkDataset.GetElementAsString(DCM_InstanceNumber) );
+    QString contentDate(ctkDataset.GetElementAsString(DCM_ContentDate) );
+    QString contentTime(ctkDataset.GetElementAsString(DCM_ContentTime) );
+    QString acquisitionDate(ctkDataset.GetElementAsString(DCM_AcquisitionDate) );
+    QString acquisitionTime(ctkDataset.GetElementAsString(DCM_AcquisitionTime) );
+    seriesDescription=modality+": "+instanceNumber+" "+seriesDescription;
+    if (seriesDate.isEmpty() && seriesTime.isEmpty())
+    {
+      seriesDate=contentDate;
+      seriesTime=contentTime;
+    }
+    if (seriesDate.isEmpty() && seriesTime.isEmpty())
+    {
+      seriesDate=acquisitionDate;
+      seriesTime=acquisitionTime;
+    }
+  }
+  if (seriesDescription.isEmpty())
+  {
+    seriesDescription=modality;
+  }
+
   // store the file if the database is not in memomry
   // TODO: if we are called from insert(file) we
   // have to do something else
@@ -575,24 +623,28 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
     destinationDir.mkpath(studyInstanceUID + "/" +
                           seriesInstanceUID);
 
-    if(filePath.isEmpty())
+    const bool saveFile=false;
+    if (saveFile)
     {
-      logger.debug ( "Saving file: " + filename );
-
-      if ( !ctkDataset.SaveToFile( filename) )
+      if(filePath.isEmpty())
       {
-        logger.error ( "Error saving file: " + filename );
-        return;
-      }
-    }
-    else
-    {
-      // we're inserting an existing file
+        logger.debug ( "Saving file: " + filename );
 
-      QFile currentFile( filePath );
-      currentFile.copy(filename);
-      logger.debug( "Copy file from: " + filePath );
-      logger.debug( "Copy file to  : " + filename );
+        if ( !ctkDataset.SaveToFile( filename) )
+        {
+          logger.error ( "Error saving file: " + filename );
+          return;
+        }
+      }
+      else
+      {
+        // we're inserting an existing file
+
+        QFile currentFile( filePath );
+        currentFile.copy(filename);
+        logger.debug( "Copy file from: " + filePath );
+        logger.debug( "Copy file to  : " + filename );
+      }
     }
   }
 
@@ -633,7 +685,7 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
         insertPatientStatement.prepare ( "INSERT INTO Patients ('UID', 'PatientsName', 'PatientID', 'PatientsBirthDate', 'PatientsBirthTime', 'PatientsSex', 'PatientsAge', 'PatientsComments' ) values ( NULL, ?, ?, ?, ?, ?, ?, ? )" );
         insertPatientStatement.bindValue ( 0, patientsName );
         insertPatientStatement.bindValue ( 1, patientID );
-        insertPatientStatement.bindValue ( 2, patientsBirthDate );
+        insertPatientStatement.bindValue ( 2, QDate::fromString ( patientsBirthDate, "yyyyMMdd" ) );
         insertPatientStatement.bindValue ( 3, patientsBirthTime );
         insertPatientStatement.bindValue ( 4, patientsSex );
         // TODO: shift patient's age to study, 
@@ -653,13 +705,51 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
 
     // Patient is in now. Let's continue with the study
 
-    if ( studyInstanceUID != "" && lastStudyInstanceUID != studyInstanceUID )
+    if ( studyInstanceUID != "" /*&& lastStudyInstanceUID != studyInstanceUID */)
     {
       QSqlQuery checkStudyExistsQuery (Database);
       checkStudyExistsQuery.prepare ( "SELECT * FROM Studies WHERE StudyInstanceUID = ?" );
       checkStudyExistsQuery.bindValue ( 0, studyInstanceUID );
       checkStudyExistsQuery.exec();
-      if(!checkStudyExistsQuery.next())
+      if(checkStudyExistsQuery.next())
+      {
+        if (!studyDescription.isEmpty()          
+          || !institutionName.isEmpty()
+          || !referringPhysician.isEmpty()
+          || !performingPhysiciansName.isEmpty() 
+          || !modalitiesInStudy.isEmpty() 
+          )
+        {
+          // the study has been already added
+          // there maybe additional study information
+          QSqlQuery updateStudyStatement ( Database );
+          updateStudyStatement.prepare(
+            "UPDATE Studies SET StudyID=?, StudyDate=?, StudyTime=?, AccessionNumber=?, \
+            ModalitiesInStudy=?, InstitutionName=?, ReferringPhysician=?, PerformingPhysiciansName=?, \
+            StudyDescription=? \
+            WHERE StudyInstanceUID=?" );
+          int ind=0;
+          updateStudyStatement.bindValue ( ind++, studyID );
+          updateStudyStatement.bindValue ( ind++, QDate::fromString ( studyDate, "yyyyMMdd" ) );
+          updateStudyStatement.bindValue ( ind++, studyTime );
+          updateStudyStatement.bindValue ( ind++, accessionNumber );
+          updateStudyStatement.bindValue ( ind++, modalitiesInStudy );
+          updateStudyStatement.bindValue ( ind++, institutionName );
+          updateStudyStatement.bindValue ( ind++, referringPhysician );
+          updateStudyStatement.bindValue ( ind++, performingPhysiciansName );
+          updateStudyStatement.bindValue ( ind++, studyDescription );
+          updateStudyStatement.bindValue ( ind++, studyInstanceUID );
+          if ( !updateStudyStatement.exec() )
+          {
+            logger.error ( "Error executing statament: " + updateStudyStatement.lastQuery() + " Error: " + updateStudyStatement.lastError().text() );
+          }
+          else
+          {
+            lastStudyInstanceUID = studyInstanceUID;
+          }
+        }
+      }
+      else
       {
         QSqlQuery insertStudyStatement ( Database );
         insertStudyStatement.prepare ( "INSERT INTO Studies ( 'StudyInstanceUID', 'PatientsUID', 'StudyID', 'StudyDate', 'StudyTime', 'AccessionNumber', 'ModalitiesInStudy', 'InstitutionName', 'ReferringPhysician', 'PerformingPhysiciansName', 'StudyDescription' ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )" );
@@ -693,6 +783,11 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
       checkSeriesExistsQuery.bindValue ( 0, seriesInstanceUID );
       logger.warn ( "Statement: " + checkSeriesExistsQuery.lastQuery() );
       loggedExec(checkSeriesExistsQuery);
+      if (seriesDate.isEmpty())
+      {
+        QString contentDate(ctkDataset.GetElementAsString(DCM_ContentDate) );
+        seriesDate=contentDate;
+      }
       if(!checkSeriesExistsQuery.next())
       {
         QSqlQuery insertSeriesStatement ( Database );
@@ -700,8 +795,8 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
         insertSeriesStatement.bindValue ( 0, seriesInstanceUID );
         insertSeriesStatement.bindValue ( 1, studyInstanceUID );
         insertSeriesStatement.bindValue ( 2, static_cast<int>(seriesNumber) );
-        insertSeriesStatement.bindValue ( 3, seriesDate );
-        insertSeriesStatement.bindValue ( 4, QDate::fromString ( seriesTime, "yyyyMMdd" ) );
+        insertSeriesStatement.bindValue ( 3, QDate::fromString ( seriesDate, "yyyyMMdd" ));
+        insertSeriesStatement.bindValue ( 4, seriesTime );
         insertSeriesStatement.bindValue ( 5, seriesDescription );
         insertSeriesStatement.bindValue ( 6, bodyPartExamined );
         insertSeriesStatement.bindValue ( 7, frameOfReferenceUID );

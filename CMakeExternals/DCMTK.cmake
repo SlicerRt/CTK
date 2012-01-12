@@ -46,6 +46,7 @@ if(${add_project})
       CMAKE_GENERATOR ${gen}
       UPDATE_COMMAND ""
       BUILD_COMMAND ""
+      DOWNLOAD_COMMAND ""
       CMAKE_CACHE_ARGS
         -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
         -DCMAKE_CXX_FLAGS:STRING=${ep_common_cxx_flags}

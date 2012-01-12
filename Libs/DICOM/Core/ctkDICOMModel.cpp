@@ -335,7 +335,7 @@ void ctkDICOMModelPrivate::updateQueries(Node* node)const
           condition.append(" ( StudyDate BETWEEN \'" + QDate::fromString(this->SearchParameters["StartDate"].toString(), "yyyyMMdd").toString("yyyy-MM-dd")
                            + "\' AND \'" + QDate::fromString(this->SearchParameters["EndDate"].toString(), "yyyyMMdd").toString("yyyy-MM-dd") + "\' ) AND ");
         }
-      query = this->generateQuery("StudyInstanceUID as UID, StudyDescription as Name, ModalitiesInStudy as Scan, StudyDate as Date, AccessionNumber as Number, ReferringPhysician as Institution, ReferringPhysician as Referrer, PerformingPhysiciansName as Performer", "Studies", condition + QString("PatientsUID='%1'").arg(node->UID));
+      query = this->generateQuery("StudyInstanceUID as UID, StudyDescription as Name, ModalitiesInStudy as Scan, StudyDate as Date, AccessionNumber as Number, InstitutionName as Institution, ReferringPhysician as Referrer, PerformingPhysiciansName as Performer", "Studies", condition + QString("PatientsUID='%1'").arg(node->UID));
       logger.debug ( "ctkDICOMModelPrivate::updateQueries for Patient: query is: " + query );
       break;
     case ctkDICOMModel::StudyType:
@@ -497,7 +497,15 @@ QVariant ctkDICOMModel::data ( const QModelIndex & dataIndex, int role ) const
     // invalid).
     return QString();
     }
-  return d->value(parentIndex, dataIndex.row(), field);
+  QVariant dataValue=d->value(parentIndex, dataIndex.row(), field);
+  if (dataValue.isNull())
+  {
+    if (columnName.compare("Name")==0)
+    {
+      return QString("No description");
+    }
+  }
+  return dataValue;
 }
 
 //------------------------------------------------------------------------------
@@ -733,6 +741,8 @@ bool ctkDICOMModel::setParentData(const QModelIndex &index, const QVariant &valu
     }
   else
     {
+    Node* node = d->nodeFromIndex(index);
+
     bool checkedExist = false;
     bool partiallyCheckedExist = false;
     bool uncheckedExist = false;

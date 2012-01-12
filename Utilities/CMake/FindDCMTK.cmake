@@ -221,6 +221,26 @@ find_library( DCMTK_dcmimage_LIBRARY dcmimage
   NO_DEFAULT_PATH
 )
 
+find_path( DCMTK_dcmrt_INCLUDE_DIR drtdose.h
+  PATHS
+    ${DCMTK_DIR}/dcmrt/include
+    ${DCMTK_DIR}/dcmrt
+    ${DCMTK_DIR}/include/dcmrt
+    ${DCMTK_DIR}/include/dcmtk/dcmrt
+  NO_DEFAULT_PATH
+)
+
+find_library( DCMTK_dcmrt_LIBRARY dcmrt
+  PATHS
+    ${DCMTK_DIR}/dcmrt/libsrc
+    ${DCMTK_DIR}/dcmrt/libsrc/Release
+    ${DCMTK_DIR}/dcmrt/libsrc/Debug
+    ${DCMTK_DIR}/dcmrt/Release
+    ${DCMTK_DIR}/dcmrt/Debug
+    ${DCMTK_DIR}/lib
+  NO_DEFAULT_PATH
+)
+
 # MM: I could not find this library on debian system / dcmtk 3.5.4
 # Michael Onken: this module is now called dcmqrdb. I will re-work that script soon...
 find_library(DCMTK_imagedb_LIBRARY imagedb
@@ -245,7 +265,8 @@ if( DCMTK_config_INCLUDE_DIR
     AND DCMTK_dcmimgle_INCLUDE_DIR
     AND DCMTK_dcmimgle_LIBRARY 
     AND DCMTK_dcmimage_INCLUDE_DIR
-    AND DCMTK_dcmimage_LIBRARY)
+    AND DCMTK_dcmimage_LIBRARY
+    AND DCMTK_dcmrt_LIBRARY)
 
 #   # Wrap library is required on Linux
 #   if(NOT WIN32)
@@ -277,9 +298,11 @@ if( DCMTK_config_INCLUDE_DIR
     ${DCMTK_dcmnet_INCLUDE_DIR}
     ${DCMTK_dcmimgle_INCLUDE_DIR}
     ${DCMTK_dcmimage_INCLUDE_DIR}
+    ${DCMTK_dcmrt_INCLUDE_DIR}
   )
 
   set( DCMTK_LIBRARIES
+    ${DCMTK_dcmrt_LIBRARY}
     ${DCMTK_dcmimage_LIBRARY}
     ${DCMTK_dcmimgle_LIBRARY}
     ${DCMTK_dcmnet_LIBRARY}    
@@ -361,5 +384,7 @@ mark_as_advanced(
   DCMTK_ofstd_LIBRARY
   DCMTK_oflog_INCLUDE_DIR
   DCMTK_oflog_LIBRARY
+  DCMTK_dcmrt_INCLUDE_DIR
+  DCMTK_dcmrt_LIBRARY
   )
 
