@@ -45,7 +45,7 @@ if(${add_project})
       #GIT_TAG ${revision_tag}
       SVN_USERNAME "anonymous"
       SVN_PASSWORD ""
-      SVN_REPOSITORY "https://subversion.assembla.com/svn/sparkit/trunk/SlicerRt/src/Slicer4-bin/CTK-build/DCMTK"
+      SVN_REPOSITORY "https://subversion.assembla.com/svn/sparkit/trunk/SlicerRt/src/DCMTK"
       CMAKE_GENERATOR ${gen}
       UPDATE_COMMAND ""
       BUILD_COMMAND ""
