@@ -41,12 +41,15 @@ if(${add_project})
       SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj}
       BINARY_DIR ${proj}-build
       PREFIX ${proj}${ep_suffix}
-      GIT_REPOSITORY "${git_protocol}://git.dcmtk.org/dcmtk.git"
-      GIT_TAG ${revision_tag}
+      #GIT_REPOSITORY "${git_protocol}://git.dcmtk.org/dcmtk.git"
+      #GIT_TAG ${revision_tag}
+      SVN_USERNAME "anonymous"
+      SVN_PASSWORD ""
+      SVN_REPOSITORY "https://subversion.assembla.com/svn/sparkit/trunk/SlicerRt/src/Slicer4-bin/CTK-build/DCMTK"
       CMAKE_GENERATOR ${gen}
       UPDATE_COMMAND ""
       BUILD_COMMAND ""
-      DOWNLOAD_COMMAND ""
+      #DOWNLOAD_COMMAND ""
       CMAKE_CACHE_ARGS
         -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
         -DCMAKE_CXX_FLAGS:STRING=${ep_common_cxx_flags}
