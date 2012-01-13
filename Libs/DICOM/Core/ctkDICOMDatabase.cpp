@@ -572,12 +572,11 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
     QString rtPlanName(ctkDataset.GetElementAsString(DCM_RTPlanName) );
     QString rtPlanDate(ctkDataset.GetElementAsString(DCM_RTPlanDate) );
     QString rtPlanTime(ctkDataset.GetElementAsString(DCM_RTPlanTime) );
-    seriesDescription=modality+": "+rtPlanLabel;
+    seriesDescription+=modality+": "+rtPlanLabel;
     if (!rtPlanName.isEmpty())
     {
       seriesDescription+=" ("+rtPlanName+")";
     }
-    seriesDescription+=" "+seriesDescription;
     seriesDate=rtPlanDate;
     seriesTime=rtPlanTime;
   }
@@ -623,7 +622,7 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
     destinationDir.mkpath(studyInstanceUID + "/" +
                           seriesInstanceUID);
 
-    const bool saveFile=false;
+    const bool saveFile=true; // todo
     if (saveFile)
     {
       if(filePath.isEmpty())
