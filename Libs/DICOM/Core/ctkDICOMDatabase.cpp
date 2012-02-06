@@ -627,9 +627,6 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
     destinationDir.mkpath(studyInstanceUID + "/" +
                           seriesInstanceUID);
 
-    const bool saveFile=true; // todo
-    if (saveFile)
-    {
       if(filePath.isEmpty())
       {
         logger.debug ( "Saving file: " + filename );
@@ -650,7 +647,6 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
         logger.debug( "Copy file to  : " + filename );
       }
     }
-  }
 
   QSqlQuery checkPatientExistsQuery(Database);
   //The dbPatientID  is a unique number within the database, 
