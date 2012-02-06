@@ -60,7 +60,7 @@ ctkDICOMServerNodeWidget::ctkDICOMServerNodeWidget(QWidget* parentWidget)
   d->setupUi(this);
 
   // checkable headers.
-  d->NodeTable->model()->setHeaderData(0, Qt::Horizontal, Qt::Unchecked, Qt::CheckStateRole);
+  d->NodeTable->model()->setHeaderData(NameColumn, Qt::Horizontal, Qt::Unchecked, Qt::CheckStateRole);
   QHeaderView* previousHeaderView = d->NodeTable->horizontalHeader();
   ctkCheckableHeaderView* headerView = new ctkCheckableHeaderView(Qt::Horizontal, d->NodeTable);
   headerView->setClickable(previousHeaderView->isClickable());
@@ -107,6 +107,10 @@ int ctkDICOMServerNodeWidget::addServerNode()
   newItem->setCheckState( Qt::Unchecked );
   d->NodeTable->setItem(rowCount, NameColumn, newItem);
 
+  newItem = new QTableWidgetItem;
+  newItem->setCheckState( Qt::Checked );
+  d->NodeTable->setItem(rowCount, CGETColumn, newItem);
+
   d->NodeTable->setCurrentCell(rowCount, NameColumn);
   // The old rowCount becomes the added row index
   return rowCount;
@@ -128,6 +132,9 @@ int ctkDICOMServerNodeWidget::addServerNode(const QMap<QString, QVariant>& node)
   d->NodeTable->setItem(row, AddressColumn, newItem);
   newItem = new QTableWidgetItem( node["Port"].toString() );
   d->NodeTable->setItem(row, PortColumn, newItem);
+  newItem = new QTableWidgetItem( QString("") );
+  newItem->setCheckState( Qt::CheckState(node["CGET"].toInt()) );
+  d->NodeTable->setItem(row, CGETColumn, newItem);
   return row;
 }
 
@@ -193,6 +200,7 @@ void ctkDICOMServerNodeWidget::readSettings()
     defaultServerNode["AETitle"] = QString("AETITLE");
     defaultServerNode["Address"] = QString("dicom.example.com");
     defaultServerNode["Port"] = QString("11112");
+    defaultServerNode["CGET"] = Qt::Unchecked;
     this->addServerNode(defaultServerNode);
 
     // the uk example - see http://www.dicomserver.co.uk/ 
@@ -202,6 +210,7 @@ void ctkDICOMServerNodeWidget::readSettings()
     defaultServerNode["AETitle"] = QString("ANYAE");
     defaultServerNode["Address"] = QString("dicomserver.co.uk");
     defaultServerNode["Port"] = QString("11112");
+    defaultServerNode["CGET"] = Qt::Checked;
     this->addServerNode(defaultServerNode);
 
     return;
@@ -335,6 +344,8 @@ QMap<QString, QVariant> ctkDICOMServerNodeWidget::serverNodeParameters(int row)c
     node[label] = d->NodeTable->item(row, column)->data(Qt::DisplayRole);
     }
   node["CheckState"] = d->NodeTable->item(row, NameColumn) ?
-    d->NodeTable->item(row,0)->checkState() : Qt::Unchecked;
+    d->NodeTable->item(row,NameColumn)->checkState() : Qt::Unchecked;
+  node["CGET"] = d->NodeTable->item(row, CGETColumn) ?
+    d->NodeTable->item(row,CGETColumn)->checkState() : Qt::Unchecked;
   return node;
 }

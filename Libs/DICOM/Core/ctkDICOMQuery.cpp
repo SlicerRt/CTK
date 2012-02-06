@@ -94,6 +94,7 @@ public:
   QString                 CalledAETitle;
   QString                 Host;
   int                     Port;
+  bool                    PreferCGET;
   QMap<QString,QVariant>  Filters;
   ctkDICOMQuerySCUPrivate SCU;
   DcmDataset*             Query;
@@ -111,6 +112,7 @@ ctkDICOMQueryPrivate::ctkDICOMQueryPrivate()
   this->Query = new DcmDataset();
   this->Port = 0;
   this->Canceled = false;
+  this->PreferCGET = true;
 }
 
 //------------------------------------------------------------------------------
@@ -198,6 +200,20 @@ int ctkDICOMQuery::port()const
 {
   Q_D(const ctkDICOMQuery);
   return d->Port;
+}
+
+//------------------------------------------------------------------------------
+void ctkDICOMQuery::setPreferCGET ( bool preferCGET )
+{
+  Q_D(ctkDICOMQuery);
+  d->PreferCGET = preferCGET;
+}
+
+//------------------------------------------------------------------------------
+bool ctkDICOMQuery::preferCGET()const
+{
+  Q_D(const ctkDICOMQuery);
+  return d->PreferCGET;
 }
 
 //------------------------------------------------------------------------------
