@@ -381,6 +381,21 @@ QStringList ctkDICOMDatabase::filesForSeries(QString seriesUID)
 }
 
 //------------------------------------------------------------------------------
+QStringList ctkDICOMDatabase::runQuery(QString query)
+{
+  Q_D(ctkDICOMDatabase);
+  QSqlQuery queryObj(d->Database);
+  queryObj.prepare ( query );
+  queryObj.exec();
+  QStringList result;
+  while (queryObj.next()) 
+    {
+    result << queryObj.value(0).toString();
+    }
+  return( result );
+}
+
+//------------------------------------------------------------------------------
 void ctkDICOMDatabase::loadInstanceHeader (QString sopInstanceUID)
 {
   Q_D(ctkDICOMDatabase);
@@ -417,7 +432,10 @@ void ctkDICOMDatabase::loadFileHeader (QString fileName)
             dO->getETag(),4,16,QLatin1Char('0'));
         std::ostringstream s;
         dO->print(s);
-        d->LoadedHeader[tag] = QString(s.str().c_str());
+        if (!d->LoadedHeader.contains(tag))
+          {
+          d->LoadedHeader[tag] = QString(s.str().c_str());
+          }
         }
       }
     }
