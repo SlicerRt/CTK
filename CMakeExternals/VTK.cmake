@@ -41,14 +41,16 @@ if(${add_project} OR CTK_LIB_Scripting/Python/Core_PYTHONQT_USE_VTK)
       if(${proj}_REVISION_TAG)
         set(revision_tag ${${proj}_REVISION_TAG})
       endif()
-
-      # Set CMake OSX variable to pass down the external project
-      set(CMAKE_OSX_EXTERNAL_PROJECT_ARGS)
-      if(APPLE)
-        list(APPEND CMAKE_OSX_EXTERNAL_PROJECT_ARGS
-          -DCMAKE_OSX_ARCHITECTURES:STRING=${CMAKE_OSX_ARCHITECTURES}
-          -DCMAKE_OSX_SYSROOT:STRING=${CMAKE_OSX_SYSROOT}
-          -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=${CMAKE_OSX_DEPLOYMENT_TARGET})
+      
+      set(location_args )
+      if(${proj}_URL)
+        set(location_args URL ${${proj}_URL})
+      elseif(${proj}_GIT_REPOSITORY)
+        set(location_args GIT_REPOSITORY ${${proj}_GIT_REPOSITORY}
+                          GIT_TAG ${revision_tag})
+      else()
+        set(location_args GIT_REPOSITORY "${git_protocol}://vtk.org/VTK.git"
+                          GIT_TAG ${revision_tag})
       endif()
 
   #     message(STATUS "Adding project:${proj}")
@@ -56,18 +58,12 @@ if(${add_project} OR CTK_LIB_Scripting/Python/Core_PYTHONQT_USE_VTK)
         SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj}
         BINARY_DIR ${proj}-build
         PREFIX ${proj}${ep_suffix}
-        GIT_REPOSITORY ${git_protocol}://vtk.org/VTK.git
-        GIT_TAG ${revision_tag}
+        ${location_args}
         UPDATE_COMMAND ""
         INSTALL_COMMAND ""
         CMAKE_GENERATOR ${gen}
         CMAKE_CACHE_ARGS
-          -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-          -DCMAKE_CXX_FLAGS:STRING=${ep_common_cxx_flags}
-          -DCMAKE_C_FLAGS:STRING=${ep_common_c_flags}
-          -DCMAKE_INSTALL_PREFIX:PATH=${ep_install_dir}
-          ${CMAKE_OSX_EXTERNAL_PROJECT_ARGS}
-          -DBUILD_TESTING:BOOL=OFF
+          ${ep_common_cache_args}
           ${additional_vtk_cmakevars}
           -DVTK_WRAP_TCL:BOOL=OFF
           -DVTK_USE_TK:BOOL=OFF

@@ -29,6 +29,7 @@
 // CTK includes
 #include "ctkScriptingPythonCoreExport.h"
 
+class ctkAbstractPythonManagerPrivate;
 class PythonQtObjectPtr;
 
 /// \ingroup Scripting_Python_Core
@@ -39,9 +40,27 @@ class CTK_SCRIPTING_PYTHON_CORE_EXPORT ctkAbstractPythonManager : public QObject
 public:
   typedef QObject Superclass;
   ctkAbstractPythonManager(QObject* _parent=NULL);
-  ~ctkAbstractPythonManager();
+  virtual ~ctkAbstractPythonManager();
 
+  /// Calling this function after mainContext() has been called at least once is a no-op.
+  /// If not overridden calling this function, the default initialization flags are
+  /// PythonQt::IgnoreSiteModule and PythonQt::RedirectStdOut.
+  /// \sa PythonQt::InitFlags
+  void setInitializationFlags(int flags);
+
+  /// \sa setInitializationFlags
+  int initializationFlags()const;
+
+  /// Initialize python context considering the initializationFlags.
+  /// Return \a True if python has been successfully initialized.
+  /// \sa setInitializationFlags, mainContext, isPythonInitialized
+  /// \sa preInitialization, executeInitializationScripts, pythonPreInitialized, pythonInitialized
+  bool initialize();
+
+  /// Return a reference to the python main context.
+  /// Calling this function implicitly call initialize() if it hasn't been done.
   PythonQtObjectPtr mainContext();
+
   void addObjectToPythonMain(const QString& name, QObject* obj);
   void registerPythonQtDecorator(QObject* decorator);
   void registerClassForPythonQt(const QMetaObject* metaobject);
@@ -85,6 +104,10 @@ public:
   /// \sa pythonInitialized
   bool isPythonInitialized()const;
 
+  /// Returns True if a python error occured.
+  /// \sa PythonQt::errorOccured()
+  bool pythonErrorOccured()const;
+
 Q_SIGNALS:
 
   /// This signal is emitted after python is pre-initialized. Observers can listen
@@ -103,7 +126,7 @@ protected Q_SLOTS:
 
 protected:
 
-  void initPythonQt();
+  void initPythonQt(int flags);
 
   virtual QStringList     pythonPaths();
 
@@ -113,8 +136,12 @@ protected:
   /// Overload this function to execute script at initialization time
   virtual void            executeInitializationScripts();
 
+protected:
+  QScopedPointer<ctkAbstractPythonManagerPrivate> d_ptr;
+
 private:
-  void (*InitFunction)();
+  Q_DECLARE_PRIVATE(ctkAbstractPythonManager);
+  Q_DISABLE_COPY(ctkAbstractPythonManager);
 
 };
 #endif

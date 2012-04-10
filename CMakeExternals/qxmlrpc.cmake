@@ -25,13 +25,17 @@ if(${add_project})
 
     if(NOT DEFINED qxmlrpc_DIR)
     
-      # Set CMake OSX variable to pass down the external project
-      set(CMAKE_OSX_EXTERNAL_PROJECT_ARGS)
-      if(APPLE)
-        list(APPEND CMAKE_OSX_EXTERNAL_PROJECT_ARGS
-          -DCMAKE_OSX_ARCHITECTURES:STRING=${CMAKE_OSX_ARCHITECTURES}
-          -DCMAKE_OSX_SYSROOT:STRING=${CMAKE_OSX_SYSROOT}
-          -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=${CMAKE_OSX_DEPLOYMENT_TARGET})
+      set(location_args )
+      if(${proj}_URL)
+        set(location_args URL ${${proj}_URL})
+      elseif(${proj}_GIT_REPOSITORY)
+        set(location_args GIT_REPOSITORY ${${proj}_GIT_REPOSITORY})
+        if(${proj}_REVISION_TAG)
+          list(APPEND location_args GIT_TAG ${${proj}_REVISION_TAG})
+        endif()
+      else()
+        set(location_args GIT_REPOSITORY "${git_protocol}://github.com/commontk/qxmlrpc.git"
+                          GIT_TAG "origin/patched")
       endif()
       
       #message(STATUS "Adding project:${proj}")
@@ -39,12 +43,11 @@ if(${add_project})
         SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj}
         BINARY_DIR ${proj}-build
         PREFIX ${proj}${ep_suffix}
-        GIT_REPOSITORY "${git_protocol}://github.com/commontk/qxmlrpc.git"
-        GIT_TAG "origin/patched"
+        ${location_args}
         CMAKE_GENERATOR ${gen}
         INSTALL_COMMAND ""
         CMAKE_ARGS
-          ${ep_common_args}
+          ${ep_common_cache_args}
           -DQT_QMAKE_EXECUTABLE:FILEPATH=${QT_QMAKE_EXECUTABLE}
         DEPENDS
           ${proj_DEPENDENCIES}
