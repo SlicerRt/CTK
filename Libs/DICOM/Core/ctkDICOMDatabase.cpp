@@ -43,7 +43,6 @@
 
 // DCMTK includes
 #include <dcmtk/dcmdata/dcfilefo.h>
-#include <dcmtk/dcmdata/dcfilefo.h>
 #include <dcmtk/dcmdata/dcdeftag.h>
 #include <dcmtk/dcmdata/dcdatset.h>
 #include <dcmtk/ofstd/ofcond.h>
@@ -575,37 +574,35 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
 
   QString modality(ctkDataset.GetElementAsString(DCM_Modality) );
 
+  if (seriesDescription.isEmpty())
+  {
+    seriesDescription=modality; 
+  }
+  else
+  {
+    seriesDescription=modality+": "+seriesDescription; 
+  }
+  
   if (modality.compare("RTSTRUCT")==0)
   {
-    QString structureSetLabel(ctkDataset.GetElementAsString(DCM_StructureSetLabel) );
     QString structureSetDate(ctkDataset.GetElementAsString(DCM_StructureSetDate) );
     QString structureSetTime(ctkDataset.GetElementAsString(DCM_StructureSetTime) );
-    seriesDescription=modality+": "+structureSetLabel+" "+seriesDescription;
     seriesDate=structureSetDate;
     seriesTime=structureSetTime;
   }
   else if (modality.compare("RTPLAN")==0)
   {
-    QString rtPlanLabel(ctkDataset.GetElementAsString(DCM_RTPlanLabel) );
-    QString rtPlanName(ctkDataset.GetElementAsString(DCM_RTPlanName) );
     QString rtPlanDate(ctkDataset.GetElementAsString(DCM_RTPlanDate) );
     QString rtPlanTime(ctkDataset.GetElementAsString(DCM_RTPlanTime) );
-    seriesDescription+=modality+": "+rtPlanLabel;
-    if (!rtPlanName.isEmpty())
-    {
-      seriesDescription+=" ("+rtPlanName+")";
-    }
     seriesDate=rtPlanDate;
     seriesTime=rtPlanTime;
   }
   else if (modality.compare("RTDOSE")==0)
   {
-    QString instanceNumber(ctkDataset.GetElementAsString(DCM_InstanceNumber) );
     QString contentDate(ctkDataset.GetElementAsString(DCM_ContentDate) );
     QString contentTime(ctkDataset.GetElementAsString(DCM_ContentTime) );
     QString acquisitionDate(ctkDataset.GetElementAsString(DCM_AcquisitionDate) );
     QString acquisitionTime(ctkDataset.GetElementAsString(DCM_AcquisitionTime) );
-    seriesDescription=modality+": "+instanceNumber+" "+seriesDescription;
     if (seriesDate.isEmpty() && seriesTime.isEmpty())
     {
       seriesDate=contentDate;
@@ -616,10 +613,6 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
       seriesDate=acquisitionDate;
       seriesTime=acquisitionTime;
     }
-  }
-  if (seriesDescription.isEmpty())
-  {
-    seriesDescription=modality;
   }
 
   // store the file if the database is not in memomry
