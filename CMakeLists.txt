@@ -200,6 +200,7 @@ include(CMake/ctkFunctionCheckCompilerFlags.cmake)
 include(CMake/ctkFunctionGetIncludeDirs.cmake)
 include(CMake/ctkFunctionGetLibraryDirs.cmake)
 include(CMake/ctkFunctionGetGccVersion.cmake)
+include(CMake/ctkFunctionGetCompilerVisibilityFlags.cmake)
 include(CMake/ctkFunctionCompileSnippets.cmake)
 
 #-----------------------------------------------------------------------------
@@ -243,6 +244,12 @@ if(BUILD_TESTING)
 endif()
 
 #-----------------------------------------------------------------------------
+# QtTesting
+#
+option(CTK_USE_QTTESTING "Enable/Disable QtTesting" OFF)
+mark_as_advanced(CTK_USE_QTTESTING)
+
+#-----------------------------------------------------------------------------
 # Coverage
 #
 option(WITH_COVERAGE "Enable/Disable coverage" OFF)
@@ -270,21 +277,7 @@ mark_as_advanced(ADDITIONAL_CXX_FLAGS)
 # Set symbol visibility Flags
 #
 
-ctkFunctionGetGccversion(${CMAKE_CXX_COMPILER} GCC_VERSION)
-
-# MinGW does not export all symbols automatically, so no need to set flags.
-#
-# With gcc < 4.5, RTTI symbols from classes declared in third-party libraries
-# which are not "gcc visibility aware" are marked with hidden visibility in
-# DSOs which include the class declaration and which are compiled with
-# hidden visibility. This leads to dynamic_cast and exception handling problems.
-# While this problem could be worked around by sandwiching the include
-# directives for the third-party headers between "#pragma visibility push/pop"
-# statements, it is generally safer to just use default visibility with
-# gcc < 4.5.
-if(CMAKE_COMPILER_IS_GNUCXX AND NOT ${GCC_VERSION} VERSION_LESS "4.5" AND NOT MINGW)
-  set(VISIBILITY_CXX_FLAGS "-fvisibility=hidden -fvisibility-inlines-hidden")
-endif()
+ctkFunctionGetCompilerVisibilityFlags(VISIBILITY_CXX_FLAGS)
 
 #-----------------------------------------------------------------------------
 # Set coverage Flags
@@ -308,6 +301,8 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 
   ctkFunctionCheckCompilerFlags("-fdiagnostics-show-option" cflags)
   ctkFunctionCheckCompilerFlags("-Wl,--no-undefined" cflags)
+  
+  ctkFunctionGetGccVersion(${CMAKE_CXX_COMPILER} GCC_VERSION)
 
   # With older version of gcc supporting the flag -fstack-protector-all, an extra dependency to libssp.so
   # is introduced. If gcc is smaller than 4.4.0 and the build type is Release let's not include the flag.
@@ -429,7 +424,7 @@ ctk_lib_option(PluginFramework
 
 ctk_lib_option(Widgets
                "Build the Widgets library" OFF
-               CTK_ENABLE_Widgets OR (CTK_ENABLE_DICOMApplicationHosting AND CTK_BUILD_EXAMPLES))
+               CTK_ENABLE_Widgets OR (CTK_ENABLE_DICOMApplicationHosting AND CTK_BUILD_EXAMPLES) OR CTK_USE_QTTESTING)
                
 ctk_lib_option(DICOM/Core
                "Build the DICOM Core library" OFF
@@ -461,6 +456,14 @@ ctk_lib_option(Visualization/VTK/Widgets
 #ctk_lib_option(Visualization/XIP
 #               "Build the XIP library" OFF)
 
+# Save the set of enabled libs in a cache file
+set(_enabled_libs)
+foreach(_lib ${CTK_LIBS})
+  if(CTK_LIB_${_lib})
+    list(APPEND _enabled_libs ${_lib})
+  endif()
+endforeach()
+set(CTK_ENABLED_LIBS ${_enabled_libs} CACHE INTERNAL "" FORCE)
 #-----------------------------------------------------------------------------
 # CTK Applications - Use ON or OFF to indicate if the application should be built by default
 #
@@ -518,6 +521,12 @@ ctk_app_option(ctkDICOMObjectViewer
 ctk_app_option(ctkSimplePythonShell
                "Build the DICOM example application" OFF
                CTK_ENABLE_Python_Wrapping AND CTK_BUILD_EXAMPLES)
+
+if(CTK_USE_QTTESTING)
+  ctk_app_option(ctkQtTesting
+                "Build the ctkQtTesting example application" OFF
+                CTK_BUILD_EXAMPLES)
+endif()
 
 # Save the set of enabled apps in a cache file
 set(_enabled_apps)
@@ -722,6 +731,7 @@ ctkFunctionGenerateProjectXml(${CTK_BINARY_DIR} ${PROJECT_NAME} "${target_direct
 #-----------------------------------------------------------------------------
 set(CTK_POSSIBLE_DEPENDENCIES
   CTKData
+  QtTesting
   Log4Qt
   KWStyle
   VTK
@@ -835,6 +845,11 @@ foreach(lib ${CTK_LIBS})
     add_subdirectory(Libs/${lib})
   endif()
 endforeach()
+
+#-----------------------------------------------------------------------------
+if(CTK_USE_QTTESTING)
+  add_subdirectory(Libs/QtTesting)
+endif()
 
 #-----------------------------------------------------------------------------
 # Add CTK plugin subdirectories

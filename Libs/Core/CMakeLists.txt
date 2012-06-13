@@ -49,6 +49,8 @@ set(KIT_SRCS
   ctkErrorLogQtMessageHandler.h
   ctkErrorLogStreamMessageHandler.cpp
   ctkErrorLogStreamMessageHandler.h
+  ctkException.cpp
+  ctkException.h
   ctkLogger.cpp
   ctkLogger.h
   ctkHistogram.cpp
@@ -72,6 +74,8 @@ set(KIT_SRCS
   ctkWorkflowStep.cpp
   ctkWorkflowStep_p.h
   ctkWorkflowTransitions.h
+  ctkSetName.cpp
+  ctkSetName.h
   )
 
 if(HAVE_BFD)
