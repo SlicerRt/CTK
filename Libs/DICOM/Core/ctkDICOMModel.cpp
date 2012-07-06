@@ -741,8 +741,6 @@ bool ctkDICOMModel::setParentData(const QModelIndex &index, const QVariant &valu
     }
   else
     {
-    Node* node = d->nodeFromIndex(index);
-
     bool checkedExist = false;
     bool partiallyCheckedExist = false;
     bool uncheckedExist = false;
