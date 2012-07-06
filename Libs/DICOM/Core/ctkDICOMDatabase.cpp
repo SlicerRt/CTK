@@ -543,6 +543,11 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
   QString studyInstanceUID(ctkDataset.GetElementAsString(DCM_StudyInstanceUID) );
   QString seriesInstanceUID(ctkDataset.GetElementAsString(DCM_SeriesInstanceUID) );
   QString patientID(ctkDataset.GetElementAsString(DCM_PatientID) );
+  if ( patientID.isEmpty() && !studyInstanceUID.isEmpty() )
+  { // Use study instance uid as patient id if patient id is empty - can happen on anonymized datasets
+    // see: http://www.na-mic.org/Bug/view.php?id=2040
+    patientID = studyInstanceUID;
+  }
   if ( patientsName.isEmpty() && !patientID.isEmpty() )
   { // Use patient id as name if name is empty - can happen on anonymized datasets
     // see: http://www.na-mic.org/Bug/view.php?id=1643
@@ -550,7 +555,7 @@ void ctkDICOMDatabasePrivate::insert( const ctkDICOMDataset& ctkDataset, const Q
   }
   if ( patientsName.isEmpty() || studyInstanceUID.isEmpty() || patientID.isEmpty() )
   {
-    logger.error("Dataset is missing necessary information!");
+    logger.error("Dataset is missing necessary information (Study Instance UID is not defined)!");
     return;
   } 
 
