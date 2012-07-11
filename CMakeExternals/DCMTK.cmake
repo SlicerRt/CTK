@@ -23,8 +23,7 @@ if(${add_project})
   if(CTK_SUPERBUILD)
 
     if(NOT DEFINED DCMTK_DIR)
-      #set(revision_tag ae3b946f6e6231) # without DCMRT
-      set(revision_tag f2b71c92461085718f3bccd1c7415382d3e11e3a) # with DCMRT
+      set(revision_tag 445b3d817fec4cbd40487b3672dcdaa350b4d978)
       if(${proj}_REVISION_TAG)
         set(revision_tag ${${proj}_REVISION_TAG})
       endif()
@@ -36,8 +35,7 @@ if(${add_project})
         set(location_args GIT_REPOSITORY ${${proj}_GIT_REPOSITORY}
                           GIT_TAG ${revision_tag})
       else()
-        #set(location_args GIT_REPOSITORY "${git_protocol}://git.dcmtk.org/dcmtk.git" # without DCMRT
-        set(location_args GIT_REPOSITORY "http://git.dcmtk.org/dcmtk.git.rt" #  with DCMRT
+        set(location_args GIT_REPOSITORY "http://git.dcmtk.org/dcmtk.git"
                           GIT_TAG ${revision_tag})
       endif()
 
